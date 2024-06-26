@@ -1,0 +1,51 @@
+import pandas as pd
+import tensorflow as tf
+from tensorflow.keras.preprocessing.image import load_img, img_to_array
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score
+import numpy as np
+import os
+
+# CSV 파일 경로와 이미지 폴더 경로를 지정
+csv_file_path = "C:/NIH/Data_Entry_2017.csv"
+image_folder_path = "C:/NIH/images_002/images"
+
+start_line = 5001  # 시작 라인
+end_line = 15000    # 끝 라인
+
+# CSV 파일을 pandas 데이터프레임으로 읽어옵니다.
+df = pd.read_csv(csv_file_path, skiprows=range(1, start_line), nrows=end_line - start_line)
+
+# 이미지 파일 이름을 포함한 경로 생성
+df['image_path'] = df['Image Index'].apply(lambda x: os.path.join(image_folder_path, x))
+
+# 나이 열을 레이블로 선택
+labels = df['Patient Age']
+
+# 이미지를 로드하고 배열로 변환하는 함수
+def load_and_preprocess_image(image_path, target_size=(180, 180)):
+    image = load_img(image_path, target_size=target_size)
+    image = img_to_array(image)
+    image = image / 255.0  # 이미지 정규화
+    return image
+
+# 모든 이미지를 로드하여 numpy 배열로 변환
+features = np.array([load_and_preprocess_image(img_path) for img_path in df['image_path']])
+
+X_train, X_test, y_train, y_test = train_test_split(features, labels, test_size=0.2, random_state=42)
+
+# 2D 이미지를 1D 벡터로 변환
+X_train_flat = X_train.reshape(X_train.shape[0], -1)
+X_test_flat = X_test.reshape(X_test.shape[0], -1)
+
+# Random Forest 모델을 생성하고 학습
+model = RandomForestClassifier(n_estimators=100, random_state=42)
+model.fit(X_train_flat, y_train)
+
+# 예측을 수행
+predictions = model.predict(X_test_flat)
+
+# 모델 정확도 평가
+accuracy = accuracy_score(y_test, predictions)
+print(f'모델의 정확도: {accuracy}')
